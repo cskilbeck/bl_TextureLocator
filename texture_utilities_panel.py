@@ -291,7 +291,7 @@ def register():
     for c in classes:
         bpy.utils.register_class(c)
 
-    bpy.types.NODE_PT_TextureRemapPanel.stuff = bpy.props.PointerProperty(type=MyStuff)
+    bpy.types.window_manager.stuff = bpy.props.PointerProperty(type=MyStuff)
     
 ######################################################################
 
