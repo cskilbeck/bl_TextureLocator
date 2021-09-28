@@ -8,7 +8,7 @@ Under the list (tree) view of files, the currently selected file is previewed an
 
 ### Installation / Usage
 
-Instructions for installing add-ons are [here](https://docs.blender.org/manual/en/latest/editors/preferences/addons.html)
+Instructions for installing add-ons are [here](https://docs.blender.org/manual/en/latest/editors/preferences/addons.html#installing-add-ons)
 
 - Install and enable the add-on (note you will need to enable the 'Testing' filter to see it in the preferences)
 - Activate a Material which has some file based Image nodes in it
