@@ -47,8 +47,6 @@ import bpy
 
 import bpy.utils.previews
 
-from bpy_extras.io_utils import ImportHelper
-
 from bpy.props import (StringProperty,
                        IntProperty,
                        CollectionProperty,
