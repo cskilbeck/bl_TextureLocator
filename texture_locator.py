@@ -82,15 +82,25 @@ bl_info = {
 
 class ImagePointer(PropertyGroup):
 
+    # seem to have to do this via a class/Pointer to make it work
     img: PointerProperty(type=Image)
 
 
 class ListItem(PropertyGroup):
 
+    # index of parent node or -1 for root items
     parent: IntProperty()
+
+    # full path for folders, just filename for images
     path: StringProperty()
+
+    # True if this item is a folder rather than a file
     is_folder: BoolProperty()
+
+    # is this item expanded? Only meaningful for folders
     expanded: BoolProperty(default=True)
+
+    # all the Image node which reference this file
     images: CollectionProperty(type=ImagePointer)
 
 ######################################################################
@@ -164,7 +174,7 @@ def show_select_or_move(context):
             and 0 <= index < len(items))
 
 ######################################################################
-# get filepath for an image list_item (prepend parent path)
+# get full filepath for an image list_item (prepend parent path)
 
 
 def image_path(items, index):
@@ -202,24 +212,49 @@ class TEXTURE_LOCATOR_OT_ChangeFolder(Operator):
         return show_select_or_move(context)
 
     def execute(self, context):
+
+        # folder the user selected
         new_dir = self.properties.directory
+
         s = context.window_manager.tl_stuff
         index = s.list_index
         items = s.list_items
+
+        # this is the folder they want to change
         item = items[index]
-        missing = 0
+
+        # push an undo (TODO(chs) work out why you have to undo twice!?)
         bpy.ops.ed.undo_push()
+
+        # track # of failed moves
+        missing = 0
+
+        # children will be below this item
         for n in range(index + 1, len(items)):
+
+            # finished yet?
             if not is_child(items, n, index):
                 break
+
+            # only move images
             if not items[n].is_folder:
+
+                # get image filepath
                 local = image_path(items, n)
                 if local:
+
+                    # get relative path from old place
                     relative = os.path.relpath(local, item.path)
+
+                    # tack it onto the new place
                     newfile = os.path.join(new_dir, relative)
+
+                    # move all the images if the file exists
                     if os.path.exists(newfile):
                         for img in items[n].images:
                             replace_path(img.img, newfile)
+
+                        # something changed so rescan the list next time
                         s.refresh_required = True
                     else:
                         print(f"Warning: Can't find {newfile}")
@@ -249,19 +284,31 @@ class TEXTURE_LOCATOR_OT_ChangeFile(Operator):
         return show_select_or_move(context)
 
     def execute(self, context):
+
+        # folder the user selected
         newfile = self.properties.filepath
+
+        # check it exists
         if not os.path.exists(newfile):
             print(f"Warning: Can't find {newfile}")
             self.report({'ERROR'}, f"{newfile} not found")
         else:
+
+            # push an undo
             bpy.ops.ed.undo_push()
+
             s = context.window_manager.tl_stuff
             index = s.list_index
             items = s.list_items
             item = items[index]
+
+            # replace all the images
             for img in item.images:
                 replace_path(img.img, newfile)
+
+            # we need to rescan the list now
             s.refresh_required = True
+
         return {'FINISHED'}
 
     def invoke(self, context, event):
@@ -282,6 +329,7 @@ class TEXTURE_LOCATOR_OT_Select(Operator):
     def poll(cls, context):
         return show_select_or_move(context)
 
+    # select the Shader Nodes which reference an image
     def select(self, context, item):
         for img in item.images:
             nodes = context.space_data.node_tree.nodes
@@ -299,17 +347,20 @@ class TEXTURE_LOCATOR_OT_Select(Operator):
         items = s.list_items
         item = items[index]
 
+        # first deselect everything
         bpy.ops.node.select_all(action='DESELECT')
 
+        # if it's just an image, select the nodes
         if not item.is_folder:
             self.select(context, item)
         else:
+            # else do selection for all children
             for n in range(index + 1, len(items)):
-                if is_child(items, n, index):
-                    self.select(context, items[n])
-                else:
+                if not is_child(items, n, index):
                     break
+                self.select(context, items[n])
 
+        # make sure the selected nodes are visible
         bpy.ops.node.view_selected()
 
         return {'FINISHED'}
@@ -377,14 +428,19 @@ class TEXTURE_LOCATOR_UL_List(UIList):
             row.prop(item, "expanded", icon="NONE", text="", emboss=False)
             p = items[p].parent
 
+        # root folders show whole path, children show relative paths
         rel = item.path
 
+        # work out icons for folders
         if item.is_folder:
             icon1 = 'TRIA_DOWN' if item.expanded else 'TRIA_RIGHT'
             icon2 = "COLLECTION_COLOR_05"
+
+            # also make paths relative for children
             if item.parent != -1:
                 rel = os.path.relpath(item.path, items[item.parent].path)
         else:
+            # basic icons for files
             icon1 = "NONE"
             icon2 = "IMAGE_DATA"
 
@@ -408,31 +464,25 @@ def do_scan(context):
     paths = {}
 
     # this check _should_ be unnecessary but...
-
     if context.space_data and context.space_data.node_tree:
 
         # scan all the nodes
-
         for n in context.space_data.node_tree.nodes:
 
             # if node has an Image which is based on a source file
-
             img = getattr(n, "image", None)
 
             if img is not None and img.filepath:
 
                 # get path and filename
-
                 path, name = os.path.split(bpy.path.abspath(img.filepath))
                 if path and name:
 
                     # add new path if haven't seen it yet
-
                     if path not in paths:
                         paths[path] = []
 
                     # and any new image(s) which reference the file
-
                     exists = False
                     for e in paths[path]:
                         if e['filename'] == name:
@@ -446,15 +496,12 @@ def do_scan(context):
                             "images": [img]})
 
     # sorted list of paths so parents come before children
-
     sorted_paths = sorted(paths.keys())
 
     # now make the List Items
-
     items = s.list_items
 
     # try to keep the selection on the thing it was on before...
-
     index = s.list_index
 
     old_path = ""
@@ -473,7 +520,6 @@ def do_scan(context):
     for p in sorted_paths:
 
         # find most recent parent folder (or -1 if it's a root path)
-
         parent = -1
         for i in range(index - 1, -1, -1):
             if items[i].is_folder and bpy.path.is_subdir(p, items[i].path):
@@ -481,7 +527,6 @@ def do_scan(context):
                 break
 
         # add folder to the list
-
         x = items.add()
         x.is_folder = True
         x.path = p
@@ -490,7 +535,6 @@ def do_scan(context):
         x.expanded = True
 
         # was this one (or a child of this one) selected before?
-
         if p == old_path or p == old_parent:
             old_parent = ""
             new_index = index
@@ -499,9 +543,7 @@ def do_scan(context):
         index += 1
 
         # add the files in that folder to the list
-
         for t in paths[p]:
-
             y = items.add()
             y.is_folder = False
             y.path = t["filename"]
@@ -513,11 +555,9 @@ def do_scan(context):
 
             # refresh the preview from image 0, should be the same for all
             # the images in the list
-
             t['images'][0].preview.reload()
 
             # was this the one they had selected before?
-
             if new_index == parent and old_path == y.path:
                 new_index = index
                 old_path = ""
@@ -526,7 +566,6 @@ def do_scan(context):
             index += 1
 
     # selection index hopefully pointing at same old one or none
-
     s.list_index = new_index
 
 ######################################################################
@@ -586,7 +625,6 @@ class TEXTURE_LOCATOR_PT_TextureLocatorPanel(Panel):
             do_scan(context)
 
         # first the buttons
-
         items = s.list_items
         index = s.list_index
 
@@ -597,31 +635,37 @@ class TEXTURE_LOCATOR_PT_TextureLocatorPanel(Panel):
         row.operator("texture_locator.refresh")
         row.operator("texture_locator.select")
 
+        # if nothing selected, no button
         if 0 > index or index >= len(items):
             cols[1].label(text="")
+        # or change_folder button if selection is a folder
         elif items[index].is_folder:
             cols[1].operator("texture_locator.change_folder")
+        # or change_file button (it must be a file)
         else:
             cols[1].operator("texture_locator.change_file")
 
         # then the UIList (treeview)
-
         row = layout.row()
         row.template_list("TEXTURE_LOCATOR_UL_List", "Items",
                           s, "list_items", s, "list_index")
 
         # then details and image preview if selected item is an image
-
         if 0 <= index < len(items):
             item = items[index]
             if not item.is_folder:
+
+                # show all the image names first
                 for img in item.images:
                     row = layout.row()
                     row.prop(img.img, "name", icon="IMAGE_DATA", text="")
 
+                # then image dimensions (will be 0 x 0 for a missing file)
                 image = item.images[0].img
                 row = layout.row()
                 row.label(text=f"{image.size[0]} x {image.size[1]}")
+
+                # then an image preview
                 row = layout.row()
                 row.template_icon(icon_value=image.preview.icon_id, scale=8)
 
