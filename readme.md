@@ -6,6 +6,16 @@ Show a view of all files used by image nodes in the current material and allow t
 
 Under the list (tree) view of files, the currently selected file is previewed and images which use it can be renamed.
 
+### Installation / Usage
+
+Instructions for installing add-ons are [here](https://docs.blender.org/manual/en/latest/editors/preferences/addons.html)
+
+- Install and enable the add-on (note you will need to enable the 'Testing' filter to see it in the preferences)
+- Activate a Material which has some file based Image nodes in it
+- Go to the Shader Editor
+- Select the 'Tool' tab
+- You should see a new panel called 'Texture Locator' in there
+
 ### Screenshot
 
 ![screenshot](screenshot.png)
@@ -28,7 +38,11 @@ I haven't managed to get `bpy.msgbus` to trigger a callback when the set of node
 
 The UIList view of files/folders is jerry-rigged to look like a tree view. It sort of works but is kind of janky. I couldn't find a proper tree view exposed in the Python API anywhere.
 
-The tooltips for the items in the UIList are all kinds of wrong. I haven't figured out how to make them useful.
+The tooltips for the items in the UIList are all wrong. I haven't figured out how to make them useful.
+
+I can't see a way to set the filter in the file dialog so you are only shown image files when you click 'Change Image'. At the moment it shows files of all types which might lead to confusion.
+
+Undo is somewhat broken. After making changes with 'Change File' or 'Change Folder' you have to press ctrl-z twice to get the action undone. Also the image preview gets corrupted after the undo until you press 'Refresh'. From what I can see on the forums, undo support for add-ons is a little shaky. I've tried with manually calling `bpy.ops.ed.undo_push()` as well as specifying `bl_options = {"REGISTER", "UNDO"}` in the operator, the result is the same in either case.
 
 ### bl_info
 
