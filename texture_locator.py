@@ -267,7 +267,6 @@ class TEXTURE_LOCATOR_OT_ChangeFile(Operator):
         return {'FINISHED'}
 
     def invoke(self, context, event):
-        self.use_filter_image = True
         context.window_manager.fileselect_add(self)
         return {'RUNNING_MODAL'}
 
