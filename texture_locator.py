@@ -210,6 +210,7 @@ class TEXTURE_LOCATOR_OT_ChangeFolder(Operator):
         items = s.list_items
         item = items[index]
         missing = 0
+        bpy.ops.ed.undo_push()
         for n in range(index + 1, len(items)):
             if not is_child(items, n, index):
                 break
@@ -255,6 +256,7 @@ class TEXTURE_LOCATOR_OT_ChangeFile(Operator):
             print(f"Warning: Can't find {newfile}")
             self.report({'ERROR'}, f"{newfile} not found")
         else:
+            bpy.ops.ed.undo_push()
             s = context.window_manager.tl_stuff
             index = s.list_index
             items = s.list_items
@@ -661,10 +663,6 @@ def unregister():
     for c in classes:
         bpy.utils.unregister_class(c)
 
-    # not sure this is doing anything...
-    # was getting some shirty messages about dangling something
-
-    bpy.utils.previews.clear()
 
 ######################################################################
 
